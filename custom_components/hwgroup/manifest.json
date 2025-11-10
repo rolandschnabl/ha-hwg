@@ -1,0 +1,11 @@
+{
+  "domain": "hwgroup",
+  "name": "HW Group Devices",
+  "codeowners": ["@hwgroup"],
+  "config_flow": true,
+  "documentation": "https://github.com/hwgroup/homeassistant-hwgroup",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "requirements": ["aiohttp>=3.8.0"],
+  "version": "1.0.0"
+}

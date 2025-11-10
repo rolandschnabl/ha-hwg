@@ -1,0 +1,24 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "HW Group Device Setup",
+        "description": "Enter the connection details for your HW Group device",
+        "data": {
+          "host": "Host (IP address or hostname)",
+          "username": "Username (optional)",
+          "password": "Password (optional)",
+          "device_type": "Device Type"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the device",
+      "invalid_auth": "Invalid authentication credentials",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  }
+}
