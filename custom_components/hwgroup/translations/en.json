@@ -21,5 +21,25 @@
     "abort": {
       "already_configured": "Device is already configured"
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configure HW Group Device",
+        "description": "Update the connection details for {device_name}. Changes will be applied immediately without restart.",
+        "data": {
+          "host": "Host (IP address or hostname)",
+          "device_name": "Device name (optional)",
+          "username": "Username (optional)",
+          "password": "Password (optional)",
+          "device_type": "Device Type"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the device",
+      "invalid_auth": "Invalid authentication credentials",
+      "unknown": "Unexpected error occurred"
+    }
   }
 }
