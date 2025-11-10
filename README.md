@@ -15,8 +15,11 @@ This custom integration provides support for HW Group devices in Home Assistant,
 - ⚡ **Voltage/Current Sensors** - Monitor electrical parameters
 - 🚪 **Binary Sensors** - Track door contacts, alarms, and other binary inputs
 - 🔌 **Switch/Relay Control** - Control outputs on Poseidon devices
-- 🔄 **Automatic Updates** - Regular polling of device status (configurable interval)
+- � **SMS Services** - Send SMS and make calls via SMS Gateway (see [SMS Services Documentation](SMS_SERVICES.md))
+- 📶 **Signal Monitoring** - Monitor cellular signal quality and network status
+- �🔄 **Automatic Updates** - Regular polling of device status (configurable interval)
 - 🖥️ **UI Configuration** - Easy setup through the Home Assistant UI
+- 🎯 **Automatic Device Detection** - Automatically detects device type from model information
 
 ## Installation
 
@@ -64,8 +67,14 @@ The integration will automatically discover all sensors, binary sensors, and swi
 - Compact form factor
 
 ### SMS Gateway
-- Status monitoring
-- SMS notification capabilities
+- 📱 SMS sending and phone call capabilities
+- 📶 Cellular signal strength monitoring (dBm)
+- 📊 Signal quality monitoring (%)
+- 📡 Network operator detection
+- 📈 SMS statistics (sent/errors)
+- 🔔 Network registration status
+
+**See [SMS Services Documentation](SMS_SERVICES.md) for detailed SMS automation examples!**
 
 ## Device Communication
 

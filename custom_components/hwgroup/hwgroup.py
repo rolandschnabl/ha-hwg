@@ -71,7 +71,10 @@ class HWGroupAPI:
                 data = self._parse_xml_data(xml_data)
                 
                 # For SMS Gateway, also fetch status.xml for additional sensors
-                if data["device_info"].get("device_type") == "sms_gateway":
+                device_type = data["device_info"].get("device_type")
+                _LOGGER.debug("Device type: %s", device_type)
+                if device_type == "sms_gateway":
+                    _LOGGER.debug("Fetching SMS Gateway status from status.xml")
                     try:
                         async with self.session.get(
                             f"{self.base_url}/status.xml",
@@ -80,9 +83,12 @@ class HWGroupAPI:
                         ) as status_response:
                             if status_response.status == 200:
                                 status_xml = await status_response.text()
+                                _LOGGER.debug("Got status.xml: %s", status_xml[:200])
                                 self._parse_sms_gateway_status(status_xml, data)
+                            else:
+                                _LOGGER.warning("status.xml returned status %s", status_response.status)
                     except Exception as err:
-                        _LOGGER.debug("Could not fetch SMS Gateway status: %s", err)
+                        _LOGGER.warning("Could not fetch SMS Gateway status: %s", err)
                 
                 _LOGGER.info("Parsed data: %d sensors, %d binary_sensors, %d switches", 
                             len(data["sensors"]), len(data["binary_sensors"]), len(data["switches"]))
