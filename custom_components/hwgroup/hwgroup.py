@@ -79,6 +79,10 @@ class HWGroupAPI:
         try:
             _LOGGER.debug("Parsing XML data: %s", xml_data[:500])  # Log first 500 chars
             root = ElementTree.fromstring(xml_data)
+            
+            # Handle XML namespace
+            namespace = {"val": "http://www.etech.cz/XMLSchema/poseidon/values.xsd"}
+            
             data = {
                 "device_info": {},
                 "sensors": [],
@@ -86,39 +90,51 @@ class HWGroupAPI:
                 "switches": [],
             }
 
-            # Parse device information
-            agent = root.find(".//agent")
+            # Parse device information from Agent element
+            agent = root.find(".//Agent") or root.find(".//val:Agent", namespace)
             if agent is not None:
-                model = agent.get("model", "Unknown")
+                device_name = agent.find("DeviceName")
+                version = agent.find("Version")
+                title = agent.find("Title")
+                serial = agent.find("SerialNumber")
+                model = agent.find("Model")
+                
+                model_text = title.text if title is not None else "Unknown"
                 data["device_info"] = {
-                    "name": agent.get("name", "HW Group Device"),
-                    "version": agent.get("version", "Unknown"),
-                    "model": model,
-                    "serial": agent.get("serialNumber", "Unknown"),
-                    "device_type": self._detect_device_type(model),
+                    "name": device_name.text if device_name is not None else "HW Group Device",
+                    "version": version.text if version is not None else "Unknown",
+                    "model": model_text,
+                    "serial": serial.text if serial is not None else "Unknown",
+                    "device_type": self._detect_device_type(model_text),
                 }
             _LOGGER.debug("Device info: %s", data["device_info"])
 
-            # Parse sensors (temperature, humidity, etc.)
-            for sensor in root.findall(".//entry"):
-                sensor_data = self._parse_sensor(sensor)
-                if sensor_data:
-                    _LOGGER.debug("Found sensor: %s", sensor_data)
-                    data["sensors"].append(sensor_data)
+            # Parse sensors from SenSet (temperature, humidity, etc.)
+            senset = root.find(".//SenSet") or root.find(".//val:SenSet", namespace)
+            if senset is not None:
+                for sensor in senset.findall("Entry"):
+                    sensor_data = self._parse_sensor(sensor)
+                    if sensor_data:
+                        _LOGGER.debug("Found sensor: %s", sensor_data)
+                        data["sensors"].append(sensor_data)
 
-            # Parse binary inputs (contacts, alarms)
-            for binary in root.findall(".//input"):
-                binary_data = self._parse_binary_sensor(binary)
-                if binary_data:
-                    _LOGGER.debug("Found binary sensor: %s", binary_data)
-                    data["binary_sensors"].append(binary_data)
+            # Parse binary inputs from BinaryInSet (contacts, alarms)
+            binaryset = root.find(".//BinaryInSet") or root.find(".//val:BinaryInSet", namespace)
+            if binaryset is not None:
+                for binary in binaryset.findall("Entry"):
+                    binary_data = self._parse_binary_sensor(binary)
+                    if binary_data:
+                        _LOGGER.debug("Found binary sensor: %s", binary_data)
+                        data["binary_sensors"].append(binary_data)
 
-            # Parse outputs/relays
-            for output in root.findall(".//output"):
-                output_data = self._parse_output(output)
-                if output_data:
-                    _LOGGER.debug("Found switch: %s", output_data)
-                    data["switches"].append(output_data)
+            # Parse outputs/relays (if device has them)
+            outputset = root.find(".//OutputSet") or root.find(".//val:OutputSet", namespace)
+            if outputset is not None:
+                for output in outputset.findall("Entry"):
+                    output_data = self._parse_output(output)
+                    if output_data:
+                        _LOGGER.debug("Found switch: %s", output_data)
+                        data["switches"].append(output_data)
 
             _LOGGER.info("Parsed data: %d sensors, %d binary_sensors, %d switches", 
                         len(data["sensors"]), len(data["binary_sensors"]), len(data["switches"]))
@@ -128,51 +144,65 @@ class HWGroupAPI:
             raise HWGroupError(f"Failed to parse XML data: {err}") from err
 
     def _parse_sensor(self, sensor: ElementTree.Element) -> dict[str, Any] | None:
-        """Parse a sensor element."""
+        """Parse a sensor element from Entry."""
         try:
-            sensor_id = sensor.get("id")
-            name = sensor.get("name", f"Sensor {sensor_id}")
-            value = sensor.find("value")
-            unit = sensor.find("unit")
-            state = sensor.find("state")
+            id_elem = sensor.find("ID")
+            name_elem = sensor.find("Name")
+            value_elem = sensor.find("Value")
+            unit_elem = sensor.find("Units")
+            state_elem = sensor.find("State")
 
-            if value is None:
+            if id_elem is None or value_elem is None:
                 return None
 
+            sensor_id = id_elem.text
+            name = name_elem.text if name_elem is not None else f"Sensor {sensor_id}"
+            
             # Get the value and handle different formats
-            sensor_value = value.text
+            sensor_value = value_elem.text
             if sensor_value:
                 try:
                     sensor_value = float(sensor_value)
                 except ValueError:
                     pass
 
+            unit_text = unit_elem.text if unit_elem is not None else ""
+            
             return {
                 "id": sensor_id,
                 "name": name,
                 "value": sensor_value,
-                "unit": unit.text if unit is not None else None,
-                "state": state.text if state is not None else "ok",
-                "type": self._determine_sensor_type(unit.text if unit is not None else ""),
+                "unit": unit_text,
+                "state": state_elem.text if state_elem is not None else "0",
+                "type": self._determine_sensor_type(unit_text),
             }
         except (AttributeError, ValueError) as err:
             _LOGGER.debug("Failed to parse sensor: %s", err)
             return None
 
     def _parse_binary_sensor(self, binary: ElementTree.Element) -> dict[str, Any] | None:
-        """Parse a binary sensor element."""
+        """Parse a binary sensor element from Entry."""
         try:
-            binary_id = binary.get("id")
-            name = binary.get("name", f"Input {binary_id}")
-            state = binary.find("state")
+            id_elem = binary.find("ID")
+            name_elem = binary.find("Name")
+            value_elem = binary.find("Value")
+            state_elem = binary.find("State")
 
-            if state is None:
+            if id_elem is None or value_elem is None:
                 return None
+
+            binary_id = id_elem.text
+            name = name_elem.text if name_elem is not None else f"Input {binary_id}"
+            
+            # Value indicates the current state (0/1)
+            value_text = value_elem.text
+            is_on = value_text == "1" if value_text else False
 
             return {
                 "id": binary_id,
                 "name": name,
-                "state": state.text.lower() in ("1", "true", "on", "active"),
+                "state": is_on,
+                "alarm_state": state_elem.text if state_elem is not None else "0",
                 "type": "contact",
             }
         except (AttributeError, ValueError) as err:
@@ -180,19 +210,26 @@ class HWGroupAPI:
             return None
 
     def _parse_output(self, output: ElementTree.Element) -> dict[str, Any] | None:
-        """Parse an output/relay element."""
+        """Parse an output/relay element from Entry."""
         try:
-            output_id = output.get("id")
-            name = output.get("name", f"Output {output_id}")
-            state = output.find("state")
+            id_elem = output.find("ID")
+            name_elem = output.find("Name")
+            value_elem = output.find("Value")
 
-            if state is None:
+            if id_elem is None or value_elem is None:
                 return None
+
+            output_id = id_elem.text
+            name = name_elem.text if name_elem is not None else f"Output {output_id}"
+            
+            # Value indicates the current state (0/1)
+            value_text = value_elem.text
+            is_on = value_text == "1" if value_text else False
 
             return {
                 "id": output_id,
                 "name": name,
-                "state": state.text.lower() in ("1", "true", "on", "active"),
+                "state": is_on,
             }
         except (AttributeError, ValueError) as err:
             _LOGGER.debug("Failed to parse output: %s", err)
@@ -201,13 +238,13 @@ class HWGroupAPI:
     def _determine_sensor_type(self, unit: str) -> str:
         """Determine sensor type from unit."""
         unit_lower = unit.lower()
-        if "°c" in unit_lower or "celsius" in unit_lower or "°f" in unit_lower:
+        if "c" == unit_lower or "°c" in unit_lower or "celsius" in unit_lower or "°f" in unit_lower or "f" == unit_lower:
             return "temperature"
         if "%" in unit_lower or "rh" in unit_lower:
             return "humidity"
         if "v" == unit_lower or "volt" in unit_lower:
             return "voltage"
-        if "a" == unit_lower or "amp" in unit_lower:
+        if "a" == unit_lower or "amp" in unit_lower or "ma" in unit_lower:
             return "current"
         return "generic"
 
