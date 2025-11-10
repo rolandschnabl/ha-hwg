@@ -44,6 +44,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         "title": device_info.get("name", data[CONF_HOST]),
         "model": device_info.get("model", "Unknown"),
         "serial": device_info.get("serial", "Unknown"),
+        "device_type": device_info.get("device_type", DEVICE_TYPE_POSEIDON_3268),
     }
 
 
@@ -89,6 +90,14 @@ class HWGroupConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 entry_data = dict(user_input)
                 entry_data[CONF_DEVICE_NAME] = configured_name
+                # Use auto-detected device type
+                entry_data[CONF_DEVICE_TYPE] = info["device_type"]
+                
+                _LOGGER.info(
+                    "Auto-detected device type: %s (Model: %s)",
+                    info["device_type"],
+                    info["model"]
+                )
 
                 return self.async_create_entry(title=configured_name, data=entry_data)
 
@@ -98,14 +107,16 @@ class HWGroupConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_USERNAME): str,
                 vol.Optional(CONF_PASSWORD): str,
                 vol.Optional(CONF_DEVICE_NAME): str,
-                vol.Optional(
-                    CONF_DEVICE_TYPE, default=DEVICE_TYPE_POSEIDON_3268
-                ): vol.In(DEVICE_TYPES),
             }
         )
 
         return self.async_show_form(
-            step_id="user", data_schema=data_schema, errors=errors
+            step_id="user", 
+            data_schema=data_schema, 
+            errors=errors,
+            description_placeholders={
+                "note": "Device type will be automatically detected"
+            }
         )
 
 
@@ -134,6 +145,21 @@ class HWGroupOptionsFlow(config_entries.OptionsFlow):
                 )
                 if not await api.async_test_connection():
                     raise CannotConnect
+                
+                # Get device info for auto-detection
+                device_data = await api.async_get_data()
+                device_info = device_data.get("device_info", {})
+                detected_type = device_info.get("device_type", DEVICE_TYPE_POSEIDON_3268)
+                
+                # Add detected device type to user input
+                user_input[CONF_DEVICE_TYPE] = detected_type
+                
+                _LOGGER.info(
+                    "Auto-detected device type: %s (Model: %s)",
+                    detected_type,
+                    device_info.get("model", "Unknown")
+                )
+                
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except HWGroupAuthError:
@@ -157,7 +183,7 @@ class HWGroupOptionsFlow(config_entries.OptionsFlow):
         current_username = self.config_entry.data.get(CONF_USERNAME, "")
         current_password = self.config_entry.data.get(CONF_PASSWORD, "")
         current_device_name = self.config_entry.data.get(CONF_DEVICE_NAME, "")
-        current_device_type = self.config_entry.data.get(CONF_DEVICE_TYPE, DEVICE_TYPE_POSEIDON_3268)
+        current_device_type = self.config_entry.data.get(CONF_DEVICE_TYPE, "")
 
         data_schema = vol.Schema(
             {
@@ -165,9 +191,11 @@ class HWGroupOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(CONF_USERNAME, default=current_username): str,
                 vol.Optional(CONF_PASSWORD, default=current_password): str,
                 vol.Optional(CONF_DEVICE_NAME, default=current_device_name): str,
-                vol.Optional(CONF_DEVICE_TYPE, default=current_device_type): vol.In(DEVICE_TYPES),
             }
         )
+
+        # Show current device type in description
+        device_type_display = current_device_type.replace("_", " ").title() if current_device_type else "Unknown"
 
         return self.async_show_form(
             step_id="init",
@@ -175,6 +203,7 @@ class HWGroupOptionsFlow(config_entries.OptionsFlow):
             errors=errors,
             description_placeholders={
                 "device_name": self.config_entry.title,
+                "current_type": device_type_display,
             },
         )
 

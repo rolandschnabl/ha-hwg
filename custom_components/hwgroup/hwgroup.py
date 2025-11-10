@@ -89,11 +89,13 @@ class HWGroupAPI:
             # Parse device information
             agent = root.find(".//agent")
             if agent is not None:
+                model = agent.get("model", "Unknown")
                 data["device_info"] = {
                     "name": agent.get("name", "HW Group Device"),
                     "version": agent.get("version", "Unknown"),
-                    "model": agent.get("model", "Unknown"),
+                    "model": model,
                     "serial": agent.get("serialNumber", "Unknown"),
+                    "device_type": self._detect_device_type(model),
                 }
             _LOGGER.debug("Device info: %s", data["device_info"])
 
@@ -208,6 +210,32 @@ class HWGroupAPI:
         if "a" == unit_lower or "amp" in unit_lower:
             return "current"
         return "generic"
+
+    def _detect_device_type(self, model: str) -> str:
+        """Detect device type from model string."""
+        from .const import (
+            DEVICE_TYPE_POSEIDON_3268,
+            DEVICE_TYPE_POSEIDON_3266,
+            DEVICE_TYPE_SMS_GATEWAY,
+        )
+        
+        model_lower = model.lower()
+        
+        # Check for Poseidon 3268
+        if "3268" in model_lower or "poseidon2 3268" in model_lower:
+            return DEVICE_TYPE_POSEIDON_3268
+        
+        # Check for Poseidon 3266
+        if "3266" in model_lower or "poseidon2 3266" in model_lower:
+            return DEVICE_TYPE_POSEIDON_3266
+        
+        # Check for SMS Gateway
+        if "sms" in model_lower or "gateway" in model_lower:
+            return DEVICE_TYPE_SMS_GATEWAY
+        
+        # Default to 3268 if unknown
+        _LOGGER.warning("Unknown device model '%s', defaulting to Poseidon 3268", model)
+        return DEVICE_TYPE_POSEIDON_3268
 
     async def async_test_connection(self) -> bool:
         """Test the connection to the device."""
