@@ -71,7 +71,15 @@ class HWGroupConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 # Determine configured name (user can override device name)
                 configured_name = user_input.get(CONF_DEVICE_NAME) or info["title"]
-                await self.async_set_unique_id(info["serial"])
+                
+                # Use host + serial as unique_id to allow multiple devices
+                # If serial is "Unknown", use only host
+                if info["serial"] != "Unknown":
+                    unique_id = f"{user_input[CONF_HOST]}_{info['serial']}"
+                else:
+                    unique_id = user_input[CONF_HOST]
+                
+                await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
 
                 entry_data = dict(user_input)

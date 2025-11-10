@@ -30,7 +30,11 @@ async def async_setup_entry(
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
 
     binary_sensors = []
-    for binary_data in coordinator.data.get("binary_sensors", []):
+    binary_list = coordinator.data.get("binary_sensors", [])
+    _LOGGER.info("Setting up %d binary sensors for entry %s", len(binary_list), entry.entry_id)
+    
+    for binary_data in binary_list:
+        _LOGGER.debug("Creating binary sensor: %s", binary_data.get("name"))
         binary_sensors.append(
             HWGroupBinarySensor(
                 coordinator,
@@ -39,7 +43,11 @@ async def async_setup_entry(
             )
         )
 
-    async_add_entities(binary_sensors)
+    if binary_sensors:
+        _LOGGER.info("Adding %d binary sensor entities", len(binary_sensors))
+        async_add_entities(binary_sensors)
+    else:
+        _LOGGER.warning("No binary sensors found in coordinator data")
 
 
 class HWGroupBinarySensor(CoordinatorEntity, BinarySensorEntity):

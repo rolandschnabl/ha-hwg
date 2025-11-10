@@ -30,7 +30,11 @@ async def async_setup_entry(
     api = hass.data[DOMAIN][entry.entry_id]["api"]
 
     switches = []
-    for switch_data in coordinator.data.get("switches", []):
+    switch_list = coordinator.data.get("switches", [])
+    _LOGGER.info("Setting up %d switches for entry %s", len(switch_list), entry.entry_id)
+    
+    for switch_data in switch_list:
+        _LOGGER.debug("Creating switch: %s", switch_data.get("name"))
         switches.append(
             HWGroupSwitch(
                 coordinator,
@@ -40,7 +44,11 @@ async def async_setup_entry(
             )
         )
 
-    async_add_entities(switches)
+    if switches:
+        _LOGGER.info("Adding %d switch entities", len(switches))
+        async_add_entities(switches)
+    else:
+        _LOGGER.warning("No switches found in coordinator data")
 
 
 class HWGroupSwitch(CoordinatorEntity, SwitchEntity):

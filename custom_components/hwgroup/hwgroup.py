@@ -77,6 +77,7 @@ class HWGroupAPI:
     def _parse_xml_data(self, xml_data: str) -> dict[str, Any]:
         """Parse XML data from the device."""
         try:
+            _LOGGER.debug("Parsing XML data: %s", xml_data[:500])  # Log first 500 chars
             root = ElementTree.fromstring(xml_data)
             data = {
                 "device_info": {},
@@ -94,25 +95,31 @@ class HWGroupAPI:
                     "model": agent.get("model", "Unknown"),
                     "serial": agent.get("serialNumber", "Unknown"),
                 }
+            _LOGGER.debug("Device info: %s", data["device_info"])
 
             # Parse sensors (temperature, humidity, etc.)
             for sensor in root.findall(".//entry"):
                 sensor_data = self._parse_sensor(sensor)
                 if sensor_data:
+                    _LOGGER.debug("Found sensor: %s", sensor_data)
                     data["sensors"].append(sensor_data)
 
             # Parse binary inputs (contacts, alarms)
             for binary in root.findall(".//input"):
                 binary_data = self._parse_binary_sensor(binary)
                 if binary_data:
+                    _LOGGER.debug("Found binary sensor: %s", binary_data)
                     data["binary_sensors"].append(binary_data)
 
             # Parse outputs/relays
             for output in root.findall(".//output"):
                 output_data = self._parse_output(output)
                 if output_data:
+                    _LOGGER.debug("Found switch: %s", output_data)
                     data["switches"].append(output_data)
 
+            _LOGGER.info("Parsed data: %d sensors, %d binary_sensors, %d switches", 
+                        len(data["sensors"]), len(data["binary_sensors"]), len(data["switches"]))
             return data
 
         except ElementTree.ParseError as err:

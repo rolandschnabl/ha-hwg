@@ -79,10 +79,14 @@ async def async_setup_entry(
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
 
     sensors = []
-    for sensor_data in coordinator.data.get("sensors", []):
+    sensor_list = coordinator.data.get("sensors", [])
+    _LOGGER.info("Setting up %d sensors for entry %s", len(sensor_list), entry.entry_id)
+    
+    for sensor_data in sensor_list:
         sensor_type = sensor_data.get("type", "generic")
         description = SENSOR_TYPES.get(sensor_type, SENSOR_TYPES["generic"])
         
+        _LOGGER.debug("Creating sensor: %s (type: %s)", sensor_data.get("name"), sensor_type)
         sensors.append(
             HWGroupSensor(
                 coordinator,
@@ -92,7 +96,11 @@ async def async_setup_entry(
             )
         )
 
-    async_add_entities(sensors)
+    if sensors:
+        _LOGGER.info("Adding %d sensor entities", len(sensors))
+        async_add_entities(sensors)
+    else:
+        _LOGGER.warning("No sensors found in coordinator data")
 
 
 class HWGroupSensor(CoordinatorEntity, SensorEntity):
