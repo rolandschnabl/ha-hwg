@@ -17,6 +17,7 @@ from .const import (
     DEVICE_TYPES,
     DEVICE_TYPE_POSEIDON_3268,
     DOMAIN,
+    CONF_DEVICE_NAME,
 )
 from .hwgroup import HWGroupAPI, HWGroupAuthError, HWGroupConnectionError
 
@@ -68,16 +69,22 @@ class HWGroupConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             else:
+                # Determine configured name (user can override device name)
+                configured_name = user_input.get(CONF_DEVICE_NAME) or info["title"]
                 await self.async_set_unique_id(info["serial"])
                 self._abort_if_unique_id_configured()
 
-                return self.async_create_entry(title=info["title"], data=user_input)
+                entry_data = dict(user_input)
+                entry_data[CONF_DEVICE_NAME] = configured_name
+
+                return self.async_create_entry(title=configured_name, data=entry_data)
 
         data_schema = vol.Schema(
             {
                 vol.Required(CONF_HOST): str,
                 vol.Optional(CONF_USERNAME): str,
                 vol.Optional(CONF_PASSWORD): str,
+                vol.Optional(CONF_DEVICE_NAME): str,
                 vol.Optional(
                     CONF_DEVICE_TYPE, default=DEVICE_TYPE_POSEIDON_3268
                 ): vol.In(DEVICE_TYPES),

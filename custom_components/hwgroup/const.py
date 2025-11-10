@@ -5,6 +5,7 @@ DOMAIN: Final = "hwgroup"
 
 # Configuration
 CONF_DEVICE_TYPE: Final = "device_type"
+CONF_DEVICE_NAME: Final = "device_name"
 
 # Device Types
 DEVICE_TYPE_POSEIDON_3268: Final = "poseidon_3268"

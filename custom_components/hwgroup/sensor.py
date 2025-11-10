@@ -26,6 +26,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .const import DOMAIN
+from .const import CONF_DEVICE_NAME
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -115,9 +116,10 @@ class HWGroupSensor(CoordinatorEntity, SensorEntity):
         
         # Set device info
         device_info = coordinator.data.get("device_info", {})
+        device_name = entry.data.get(CONF_DEVICE_NAME) or device_info.get("name", "HW Group Device")
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": device_info.get("name", "HW Group Device"),
+            "name": device_name,
             "manufacturer": "HW Group",
             "model": device_info.get("model", "Unknown"),
             "sw_version": device_info.get("version", "Unknown"),

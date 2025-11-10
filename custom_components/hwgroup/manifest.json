@@ -1,9 +1,10 @@
 {
   "domain": "hwgroup",
   "name": "HW Group Devices",
-  "codeowners": ["@hwgroup"],
+  "codeowners": ["@rolandschnabl"],
   "config_flow": true,
-  "documentation": "https://github.com/hwgroup/homeassistant-hwgroup",
+  "documentation": "https://github.com/rolandschnabl/ha-hwg",
+  "issue_tracker": "https://github.com/rolandschnabl/ha-hwg/issues",
   "integration_type": "device",
   "iot_class": "local_polling",
   "requirements": ["aiohttp>=3.8.0"],

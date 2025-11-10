@@ -6,6 +6,7 @@
         "description": "Enter the connection details for your HW Group device",
         "data": {
           "host": "Host (IP address or hostname)",
+          "device_name": "Device name (optional)",
           "username": "Username (optional)",
           "password": "Password (optional)",
           "device_type": "Device Type"
