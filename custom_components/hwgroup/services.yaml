@@ -1,0 +1,45 @@
+send_sms:
+  name: Send SMS
+  description: Send an SMS message via HWg-SMS-GW3 gateway
+  fields:
+    phone_number:
+      name: Phone Number
+      description: Recipient phone number (international format recommended, e.g., +43676123456 or 00436761234567)
+      required: true
+      example: "+43676123456"
+      selector:
+        text:
+    message:
+      name: Message
+      description: SMS message text (max 160 characters)
+      required: true
+      example: "Temperature alert: Server room is too hot!"
+      selector:
+        text:
+          multiline: true
+    device_id:
+      name: Device ID
+      description: Optional device ID if you have multiple SMS Gateways (leave empty to use the first available)
+      required: false
+      example: "01K9PC2VMZ7G6G4CZM15FFTF0G"
+      selector:
+        text:
+
+call_number:
+  name: Call Number
+  description: Ring a phone number via HWg-SMS-GW3 gateway (the call will ring and then hang up)
+  fields:
+    phone_number:
+      name: Phone Number
+      description: Phone number to call (international format recommended)
+      required: true
+      example: "+43676123456"
+      selector:
+        text:
+    device_id:
+      name: Device ID
+      description: Optional device ID if you have multiple SMS Gateways (leave empty to use the first available)
+      required: false
+      example: "01K9PC2VMZ7G6G4CZM15FFTF0G"
+      selector:
+        text:

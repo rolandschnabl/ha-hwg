@@ -68,7 +68,25 @@ class HWGroupAPI:
                     )
                 
                 xml_data = await response.text()
-                return self._parse_xml_data(xml_data)
+                data = self._parse_xml_data(xml_data)
+                
+                # For SMS Gateway, also fetch status.xml for additional sensors
+                if data["device_info"].get("device_type") == "sms_gateway":
+                    try:
+                        async with self.session.get(
+                            f"{self.base_url}/status.xml",
+                            auth=self._auth,
+                            timeout=self.timeout,
+                        ) as status_response:
+                            if status_response.status == 200:
+                                status_xml = await status_response.text()
+                                self._parse_sms_gateway_status(status_xml, data)
+                    except Exception as err:
+                        _LOGGER.debug("Could not fetch SMS Gateway status: %s", err)
+                
+                _LOGGER.info("Parsed data: %d sensors, %d binary_sensors, %d switches", 
+                            len(data["sensors"]), len(data["binary_sensors"]), len(data["switches"]))
+                return data
         except aiohttp.ClientError as err:
             raise HWGroupConnectionError(f"Connection error: {err}") from err
         except asyncio.TimeoutError as err:
@@ -80,7 +98,7 @@ class HWGroupAPI:
             _LOGGER.debug("Parsing XML data: %s", xml_data[:500])  # Log first 500 chars
             root = ElementTree.fromstring(xml_data)
             
-            # Handle XML namespace
+            # Handle XML namespace (Poseidon devices)
             namespace = {"val": "http://www.etech.cz/XMLSchema/poseidon/values.xsd"}
             
             data = {
@@ -91,17 +109,26 @@ class HWGroupAPI:
             }
 
             # Parse device information from Agent element
+            # Poseidon devices use different structure than SMS Gateway
             agent = root.find(".//Agent") or root.find(".//val:Agent", namespace)
             if agent is not None:
                 device_name = agent.find("DeviceName")
                 version = agent.find("Version")
                 title = agent.find("Title")
+                product_name = agent.find("ProductName")
                 serial = agent.find("SerialNumber")
                 model = agent.find("Model")
                 
-                model_text = title.text if title is not None else "Unknown"
+                # Handle both Poseidon (uses Title) and SMS Gateway (uses ProductName)
+                if title is not None:
+                    model_text = title.text
+                elif product_name is not None:
+                    model_text = product_name.text
+                else:
+                    model_text = "Unknown"
+                
                 data["device_info"] = {
-                    "name": device_name.text if device_name is not None else "HW Group Device",
+                    "name": device_name.text if device_name is not None else (model_text if product_name is not None else "HW Group Device"),
                     "version": version.text if version is not None else "Unknown",
                     "model": model_text,
                     "serial": serial.text if serial is not None else "Unknown",
@@ -136,8 +163,6 @@ class HWGroupAPI:
                         _LOGGER.debug("Found switch: %s", output_data)
                         data["switches"].append(output_data)
 
-            _LOGGER.info("Parsed data: %d sensors, %d binary_sensors, %d switches", 
-                        len(data["sensors"]), len(data["binary_sensors"]), len(data["switches"]))
             return data
 
         except ElementTree.ParseError as err:
@@ -258,21 +283,118 @@ class HWGroupAPI:
         
         model_lower = model.lower()
         
+        # Check for SMS Gateway first (most specific)
+        if "sms" in model_lower or "hwg-sms" in model_lower:
+            return DEVICE_TYPE_SMS_GATEWAY
+        
         # Check for Poseidon 3268
         if "3268" in model_lower or "poseidon2 3268" in model_lower:
             return DEVICE_TYPE_POSEIDON_3268
         
         # Check for Poseidon 3266
-        if "3266" in model_lower or "poseidon2 3266" in model_lower:
+        if "3266" in model_lower or "poseidon2 3266" in model_lower or "poseidon2 model 3266" in model_lower:
             return DEVICE_TYPE_POSEIDON_3266
-        
-        # Check for SMS Gateway
-        if "sms" in model_lower or "gateway" in model_lower:
-            return DEVICE_TYPE_SMS_GATEWAY
         
         # Default to 3268 if unknown
         _LOGGER.warning("Unknown device model '%s', defaulting to Poseidon 3268", model)
         return DEVICE_TYPE_POSEIDON_3268
+
+    def _parse_sms_gateway_status(self, status_xml: str, data: dict[str, Any]) -> None:
+        """Parse SMS Gateway status.xml and add sensors to data."""
+        try:
+            root = ElementTree.fromstring(status_xml)
+            
+            # Parse signal quality
+            signal_dbm = root.find("ModemSigQ")
+            if signal_dbm is not None and signal_dbm.text:
+                # Extract numeric value from "-75 dBm (61 %)" format
+                dbm_text = signal_dbm.text
+                if "dBm" in dbm_text:
+                    dbm_value = dbm_text.split("dBm")[0].strip()
+                    try:
+                        data["sensors"].append({
+                            "id": "signal_strength",
+                            "name": "Signal Strength",
+                            "value": float(dbm_value),
+                            "unit": "dBm",
+                            "state": "0",
+                            "type": "signal_strength",
+                        })
+                    except ValueError:
+                        pass
+                    
+                    # Also extract percentage
+                    if "(" in dbm_text and "%" in dbm_text:
+                        percent_text = dbm_text.split("(")[1].split("%")[0].strip()
+                        try:
+                            data["sensors"].append({
+                                "id": "signal_quality",
+                                "name": "Signal Quality",
+                                "value": float(percent_text),
+                                "unit": "%",
+                                "state": "0",
+                                "type": "generic",
+                            })
+                        except ValueError:
+                            pass
+            
+            # Parse network operator
+            net_op = root.find("ModemNetOp")
+            if net_op is not None and net_op.text and net_op.text.strip():
+                data["sensors"].append({
+                    "id": "network_operator",
+                    "name": "Network Operator",
+                    "value": net_op.text.strip(),
+                    "unit": "",
+                    "state": "0",
+                    "type": "generic",
+                })
+            
+            # Parse network registration status
+            net_reg = root.find("ModemNetReg")
+            if net_reg is not None and net_reg.text and net_reg.text.strip():
+                data["sensors"].append({
+                    "id": "network_status",
+                    "name": "Network Status",
+                    "value": net_reg.text.strip(),
+                    "unit": "",
+                    "state": "0",
+                    "type": "generic",
+                })
+            
+            # Parse SMS statistics
+            sms_ok = root.find("CntSmsOK")
+            if sms_ok is not None and sms_ok.text:
+                try:
+                    data["sensors"].append({
+                        "id": "sms_sent",
+                        "name": "SMS Sent",
+                        "value": int(sms_ok.text),
+                        "unit": "",
+                        "state": "0",
+                        "type": "generic",
+                    })
+                except ValueError:
+                    pass
+            
+            sms_error = root.find("CntSmsError")
+            if sms_error is not None and sms_error.text:
+                try:
+                    data["sensors"].append({
+                        "id": "sms_errors",
+                        "name": "SMS Errors",
+                        "value": int(sms_error.text),
+                        "unit": "",
+                        "state": "0",
+                        "type": "generic",
+                    })
+                except ValueError:
+                    pass
+            
+            _LOGGER.debug("Added SMS Gateway status sensors: %d total sensors", len(data["sensors"]))
+            
+        except ElementTree.ParseError as err:
+            _LOGGER.debug("Failed to parse SMS Gateway status XML: %s", err)
 
     async def async_test_connection(self) -> bool:
         """Test the connection to the device."""
@@ -295,4 +417,63 @@ class HWGroupAPI:
                 return response.status == 200
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             _LOGGER.error("Failed to set output state: %s", err)
+            return False
+
+    async def async_send_sms(self, phone_number: str, message: str) -> bool:
+        """Send SMS via SMS Gateway using HTTP GET method."""
+        try:
+            # URL encode the message text
+            import urllib.parse
+            encoded_text = urllib.parse.quote(message)
+            
+            # Send SMS using HTTP GET
+            url = f"{self.base_url}/values.xml?Cmd=SMS&Nmr={phone_number}&Text={encoded_text}"
+            
+            async with self.session.get(
+                url,
+                auth=self._auth,
+                timeout=self.timeout,
+            ) as response:
+                if response.status == 200:
+                    xml_response = await response.text()
+                    # Check if SMS was queued successfully
+                    # Response should contain <Rslt>1</Rslt>
+                    if "<Rslt>1</Rslt>" in xml_response:
+                        _LOGGER.info("SMS sent successfully to %s", phone_number)
+                        return True
+                    else:
+                        _LOGGER.error("SMS failed: %s", xml_response)
+                        return False
+                else:
+                    _LOGGER.error("HTTP error %s when sending SMS", response.status)
+                    return False
+        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+            _LOGGER.error("Failed to send SMS: %s", err)
+            return False
+
+    async def async_call_number(self, phone_number: str) -> bool:
+        """Ring a phone number via SMS Gateway using HTTP GET method."""
+        try:
+            # Ring using HTTP GET
+            url = f"{self.base_url}/values.xml?Cmd=Call&Nmr={phone_number}"
+            
+            async with self.session.get(
+                url,
+                auth=self._auth,
+                timeout=self.timeout,
+            ) as response:
+                if response.status == 200:
+                    xml_response = await response.text()
+                    # Check if call was queued successfully
+                    if "<Rslt>1</Rslt>" in xml_response:
+                        _LOGGER.info("Call initiated successfully to %s", phone_number)
+                        return True
+                    else:
+                        _LOGGER.error("Call failed: %s", xml_response)
+                        return False
+                else:
+                    _LOGGER.error("HTTP error %s when calling number", response.status)
+                    return False
+        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+            _LOGGER.error("Failed to call number: %s", err)
             return False

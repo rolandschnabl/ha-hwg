@@ -59,6 +59,70 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Register update listener for options changes
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
+    # Register services for SMS Gateway
+    async def handle_send_sms(call):
+        """Handle the send_sms service call."""
+        device_id = call.data.get("device_id")
+        phone_number = call.data.get("phone_number")
+        message = call.data.get("message")
+        
+        # Find the API instance for the specified device
+        api_instance = None
+        if device_id:
+            # Use specific device
+            for entry_id, data in hass.data[DOMAIN].items():
+                if entry_id == device_id:
+                    api_instance = data["api"]
+                    break
+        else:
+            # Use first SMS Gateway found
+            for data in hass.data[DOMAIN].values():
+                if isinstance(data, dict) and "api" in data:
+                    coordinator_data = data["coordinator"].data
+                    if coordinator_data.get("device_info", {}).get("device_type") == "sms_gateway":
+                        api_instance = data["api"]
+                        break
+        
+        if api_instance:
+            success = await api_instance.async_send_sms(phone_number, message)
+            if not success:
+                _LOGGER.error("Failed to send SMS to %s", phone_number)
+        else:
+            _LOGGER.error("No SMS Gateway device found")
+
+    async def handle_call_number(call):
+        """Handle the call_number service call."""
+        device_id = call.data.get("device_id")
+        phone_number = call.data.get("phone_number")
+        
+        # Find the API instance for the specified device
+        api_instance = None
+        if device_id:
+            # Use specific device
+            for entry_id, data in hass.data[DOMAIN].items():
+                if entry_id == device_id:
+                    api_instance = data["api"]
+                    break
+        else:
+            # Use first SMS Gateway found
+            for data in hass.data[DOMAIN].values():
+                if isinstance(data, dict) and "api" in data:
+                    coordinator_data = data["coordinator"].data
+                    if coordinator_data.get("device_info", {}).get("device_type") == "sms_gateway":
+                        api_instance = data["api"]
+                        break
+        
+        if api_instance:
+            success = await api_instance.async_call_number(phone_number)
+            if not success:
+                _LOGGER.error("Failed to call %s", phone_number)
+        else:
+            _LOGGER.error("No SMS Gateway device found")
+
+    # Register services
+    hass.services.async_register(DOMAIN, "send_sms", handle_send_sms)
+    hass.services.async_register(DOMAIN, "call_number", handle_call_number)
+
     return True
 
 
