@@ -222,8 +222,14 @@ class HWGroupOptionsFlow(config_entries.OptionsFlow):
                 data=final_config,
                 title=final_config.get(CONF_DEVICE_NAME, self.config_entry.title),
             )
+            
+            _LOGGER.info("Binary sensor inversion updated, reloading integration...")
+            
             # Reload the integration to apply changes without restart
             await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            
+            _LOGGER.info("Integration reloaded successfully")
+            
             return self.async_create_entry(title="", data={})
 
         # Get coordinator to fetch current binary sensors
@@ -248,12 +254,24 @@ class HWGroupOptionsFlow(config_entries.OptionsFlow):
             sensor["id"]: sensor["name"] for sensor in binary_sensors
         }
         
+        # Import selector for multi-select
+        from homeassistant.helpers import selector
+        
         data_schema = vol.Schema(
             {
                 vol.Optional(
                     CONF_INVERT_BINARY_SENSORS,
                     default=current_inverted,
-                ): vol.All(vol.Coerce(list), [vol.In(binary_sensor_options.keys())]),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[
+                            selector.SelectOptionDict(value=sid, label=name)
+                            for sid, name in binary_sensor_options.items()
+                        ],
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.LIST,
+                    )
+                ),
             }
         )
 
