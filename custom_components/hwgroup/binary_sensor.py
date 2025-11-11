@@ -32,10 +32,17 @@ async def async_setup_entry(
 
     binary_sensors = []
     binary_list = coordinator.data.get("binary_sensors", [])
-    _LOGGER.info("Setting up %d binary sensors for entry %s", len(binary_list), entry.entry_id)
+    inverted_sensors = entry.data.get(CONF_INVERT_BINARY_SENSORS, [])
+    
+    _LOGGER.info(
+        "Setting up %d binary sensors for entry %s, inverted sensors: %s", 
+        len(binary_list), 
+        entry.entry_id,
+        inverted_sensors
+    )
     
     for binary_data in binary_list:
-        _LOGGER.debug("Creating binary sensor: %s", binary_data.get("name"))
+        _LOGGER.debug("Creating binary sensor: %s (ID: %s)", binary_data.get("name"), binary_data.get("id"))
         binary_sensors.append(
             HWGroupBinarySensor(
                 coordinator,
@@ -65,7 +72,7 @@ class HWGroupBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._binary_id = binary_data["id"]
         self._attr_name = binary_data["name"]
         self._attr_unique_id = f"{entry.entry_id}_binary_{binary_data['id']}"
-        self._entry = entry
+        self._entry_id = entry.entry_id
         
         # Determine device class based on type
         sensor_type = binary_data.get("type", "contact")
@@ -92,10 +99,19 @@ class HWGroupBinarySensor(CoordinatorEntity, BinarySensorEntity):
             if binary["id"] == self._binary_id:
                 state = binary.get("state", False)
                 
-                # Check if this sensor should be inverted
-                inverted_sensors = self._entry.data.get(CONF_INVERT_BINARY_SENSORS, [])
-                if self._binary_id in inverted_sensors:
-                    state = not state
+                # Get current entry data dynamically to support live updates
+                entry = self.hass.config_entries.async_get_entry(self._entry_id)
+                if entry:
+                    inverted_sensors = entry.data.get(CONF_INVERT_BINARY_SENSORS, [])
+                    if self._binary_id in inverted_sensors:
+                        _LOGGER.debug(
+                            "Inverting binary sensor %s (ID: %s): %s -> %s",
+                            self._attr_name,
+                            self._binary_id,
+                            state,
+                            not state
+                        )
+                        state = not state
                     
                 return state
         return None
@@ -103,7 +119,9 @@ class HWGroupBinarySensor(CoordinatorEntity, BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, any]:
         """Return the state attributes."""
-        inverted_sensors = self._entry.data.get(CONF_INVERT_BINARY_SENSORS, [])
+        # Get current entry data dynamically to support live updates
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        inverted_sensors = entry.data.get(CONF_INVERT_BINARY_SENSORS, []) if entry else []
         is_inverted = self._binary_id in inverted_sensors
         
         return {

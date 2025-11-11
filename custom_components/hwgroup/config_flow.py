@@ -216,6 +216,11 @@ class HWGroupOptionsFlow(config_entries.OptionsFlow):
             # Merge basic config with binary sensor config
             final_config = {**self.basic_config, **user_input}
             
+            _LOGGER.info(
+                "Updating binary sensor inversion config: %s",
+                final_config.get(CONF_INVERT_BINARY_SENSORS, [])
+            )
+            
             # Update config entry with new data
             self.hass.config_entries.async_update_entry(
                 self.config_entry,
@@ -223,12 +228,11 @@ class HWGroupOptionsFlow(config_entries.OptionsFlow):
                 title=final_config.get(CONF_DEVICE_NAME, self.config_entry.title),
             )
             
-            _LOGGER.info("Binary sensor inversion updated, reloading integration...")
+            # Trigger coordinator refresh to update all entities
+            coordinator = self.hass.data[DOMAIN][self.config_entry.entry_id]["coordinator"]
+            await coordinator.async_request_refresh()
             
-            # Reload the integration to apply changes without restart
-            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
-            
-            _LOGGER.info("Integration reloaded successfully")
+            _LOGGER.info("Binary sensor inversion updated and entities refreshed")
             
             return self.async_create_entry(title="", data={})
 
