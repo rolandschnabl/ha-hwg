@@ -23,7 +23,7 @@
   },
   "options": {
     "step": {
-      "init": {
+      "basic": {
         "title": "Configure HW Group Device",
         "description": "Update the connection details for {device_name}. Current type: {current_type}. Device type will be automatically re-detected. Changes will be applied immediately without restart.",
         "data": {
@@ -31,6 +31,13 @@
           "device_name": "Device name (optional)",
           "username": "Username (optional)",
           "password": "Password (optional)"
+        }
+      },
+      "binary_sensors": {
+        "title": "Configure Binary Sensors",
+        "description": "Select binary sensors that should be inverted (ON becomes OFF and vice versa). Useful for door sensors where you want 'closed' to show as ON.\n\nAvailable sensors:\n{sensors}",
+        "data": {
+          "invert_binary_sensors": "Invert these binary sensors"
         }
       }
     },

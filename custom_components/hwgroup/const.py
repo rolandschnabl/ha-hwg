@@ -6,6 +6,7 @@ DOMAIN: Final = "hwgroup"
 # Configuration
 CONF_DEVICE_TYPE: Final = "device_type"
 CONF_DEVICE_NAME: Final = "device_name"
+CONF_INVERT_BINARY_SENSORS: Final = "invert_binary_sensors"
 
 # Device Types
 DEVICE_TYPE_POSEIDON_3268: Final = "poseidon_3268"

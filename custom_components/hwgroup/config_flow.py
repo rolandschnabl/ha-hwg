@@ -18,6 +18,7 @@ from .const import (
     DEVICE_TYPE_POSEIDON_3268,
     DOMAIN,
     CONF_DEVICE_NAME,
+    CONF_INVERT_BINARY_SENSORS,
 )
 from .hwgroup import HWGroupAPI, HWGroupAuthError, HWGroupConnectionError
 
@@ -131,6 +132,12 @@ class HWGroupOptionsFlow(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Manage the options."""
+        return await self.async_step_basic()
+
+    async def async_step_basic(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle basic settings."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -160,6 +167,10 @@ class HWGroupOptionsFlow(config_entries.OptionsFlow):
                     device_info.get("model", "Unknown")
                 )
                 
+                # Store in temporary data and move to binary sensor config
+                self.basic_config = user_input
+                return await self.async_step_binary_sensors()
+                
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except HWGroupAuthError:
@@ -167,16 +178,6 @@ class HWGroupOptionsFlow(config_entries.OptionsFlow):
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
-            else:
-                # Update config entry with new data
-                self.hass.config_entries.async_update_entry(
-                    self.config_entry,
-                    data=user_input,
-                    title=user_input.get(CONF_DEVICE_NAME, self.config_entry.title),
-                )
-                # Reload the integration to apply changes without restart
-                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
-                return self.async_create_entry(title="", data={})
 
         # Get current values from config entry
         current_host = self.config_entry.data.get(CONF_HOST, "")
@@ -198,12 +199,70 @@ class HWGroupOptionsFlow(config_entries.OptionsFlow):
         device_type_display = current_device_type.replace("_", " ").title() if current_device_type else "Unknown"
 
         return self.async_show_form(
-            step_id="init",
+            step_id="basic",
             data_schema=data_schema,
             errors=errors,
             description_placeholders={
                 "device_name": self.config_entry.title,
                 "current_type": device_type_display,
+            },
+        )
+
+    async def async_step_binary_sensors(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Configure binary sensor inversion."""
+        if user_input is not None:
+            # Merge basic config with binary sensor config
+            final_config = {**self.basic_config, **user_input}
+            
+            # Update config entry with new data
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data=final_config,
+                title=final_config.get(CONF_DEVICE_NAME, self.config_entry.title),
+            )
+            # Reload the integration to apply changes without restart
+            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            return self.async_create_entry(title="", data={})
+
+        # Get coordinator to fetch current binary sensors
+        coordinator = self.hass.data[DOMAIN][self.config_entry.entry_id]["coordinator"]
+        binary_sensors = coordinator.data.get("binary_sensors", [])
+        
+        if not binary_sensors:
+            # No binary sensors available, skip this step
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data=self.basic_config,
+                title=self.basic_config.get(CONF_DEVICE_NAME, self.config_entry.title),
+            )
+            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            return self.async_create_entry(title="", data={})
+        
+        # Get currently inverted sensors
+        current_inverted = self.config_entry.data.get(CONF_INVERT_BINARY_SENSORS, [])
+        
+        # Build schema with multi-select for binary sensors
+        binary_sensor_options = {
+            sensor["id"]: sensor["name"] for sensor in binary_sensors
+        }
+        
+        data_schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_INVERT_BINARY_SENSORS,
+                    default=current_inverted,
+                ): vol.All(vol.Coerce(list), [vol.In(binary_sensor_options.keys())]),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="binary_sensors",
+            data_schema=data_schema,
+            errors={},
+            description_placeholders={
+                "sensors": "\n".join([f"- {name} ({sid})" for sid, name in binary_sensor_options.items()]),
             },
         )
 

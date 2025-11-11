@@ -53,6 +53,18 @@ This custom integration provides support for HW Group devices in Home Assistant,
 
 The integration will automatically discover all sensors, binary sensors, and switches available on your device.
 
+### Reconfiguring a Device
+
+To change device settings (host, credentials, or binary sensor inversion):
+
+1. Go to **Settings** → **Devices & Services**
+2. Find your HW Group device
+3. Click **Configure**
+4. **Step 1**: Update basic settings (host, username, password, device name)
+5. **Step 2**: Select binary sensors to invert (optional)
+   - Useful for door sensors where "closed" should show as ON
+   - Changes apply immediately without restart
+
 ## Supported Devices
 
 ### Poseidon 3268
@@ -97,6 +109,7 @@ The integration creates the following entity types:
 ### Binary Sensors
 - Contact sensors (door/window contacts)
 - Alarm sensors
+- **Inversion support** - Configurable per sensor to reverse logic (e.g., door "closed" = ON)
 
 ### Switches
 - Relay/output controls
@@ -105,6 +118,7 @@ All entities include:
 - Unique identifiers
 - Device information
 - State attributes with additional details
+- Binary sensors show "inverted: true/false" attribute
 
 ## Troubleshooting
 

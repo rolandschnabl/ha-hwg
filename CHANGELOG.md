@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2025-11-11
+
+### Added - Binary Sensor Inversion 🔄
+
+#### New Features
+- **Binary Sensor Inversion** - Option to invert individual binary sensors
+  - Configure via Options Flow (UI configuration)
+  - Per-sensor inversion setting
+  - Useful for door sensors where "closed" should show as ON
+  - Shows "inverted: true/false" in sensor attributes
+  - No restart required when changing inversion settings
+
+#### Enhanced Configuration
+- **Two-step Options Flow**:
+  1. Basic settings (host, credentials, device name)
+  2. Binary sensor configuration (select sensors to invert)
+- Automatic listing of all available binary sensors during configuration
+- Multi-select interface for easy sensor selection
+- German translations added (de.json)
+
+#### Use Cases
+- **Door Sensors**: Invert so "door closed" = ON (secure state)
+- **Contact Sensors**: Reverse logic for "normally closed" contacts
+- **Alarm Inputs**: Flip state to match desired alarm logic
+- **Custom Logic**: Any binary sensor where opposite state is preferred
+
+### Changed
+- Options flow split into two steps for better organization
+- Enhanced UI descriptions in configuration flow
+- Added sensor list display during binary sensor configuration
+
+### Technical
+- New constant: `CONF_INVERT_BINARY_SENSORS` for storing inverted sensor IDs
+- Binary sensor `is_on` property now checks inversion list
+- Added `inverted` attribute to all binary sensors
+- Updated translation files (en.json, de.json, strings.json)
+
+---
+
 ## [1.1.0] - 2025-11-10
 
 ### Added - SMS Gateway Support 📱

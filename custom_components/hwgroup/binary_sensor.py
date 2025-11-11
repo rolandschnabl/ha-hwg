@@ -17,6 +17,7 @@ from homeassistant.helpers.update_coordinator import (
 
 from .const import DOMAIN
 from .const import CONF_DEVICE_NAME
+from .const import CONF_INVERT_BINARY_SENSORS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ class HWGroupBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._binary_id = binary_data["id"]
         self._attr_name = binary_data["name"]
         self._attr_unique_id = f"{entry.entry_id}_binary_{binary_data['id']}"
+        self._entry = entry
         
         # Determine device class based on type
         sensor_type = binary_data.get("type", "contact")
@@ -88,12 +90,23 @@ class HWGroupBinarySensor(CoordinatorEntity, BinarySensorEntity):
         """Return true if the binary sensor is on."""
         for binary in self.coordinator.data.get("binary_sensors", []):
             if binary["id"] == self._binary_id:
-                return binary.get("state", False)
+                state = binary.get("state", False)
+                
+                # Check if this sensor should be inverted
+                inverted_sensors = self._entry.data.get(CONF_INVERT_BINARY_SENSORS, [])
+                if self._binary_id in inverted_sensors:
+                    state = not state
+                    
+                return state
         return None
 
     @property
     def extra_state_attributes(self) -> dict[str, any]:
         """Return the state attributes."""
+        inverted_sensors = self._entry.data.get(CONF_INVERT_BINARY_SENSORS, [])
+        is_inverted = self._binary_id in inverted_sensors
+        
         return {
             "binary_sensor_id": self._binary_id,
+            "inverted": is_inverted,
         }

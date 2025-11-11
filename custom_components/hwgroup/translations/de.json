@@ -1,0 +1,50 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "HW Group Gerät einrichten",
+        "description": "Geben Sie die Verbindungsdetails für Ihr HW Group Gerät ein. Der Gerätetyp wird automatisch erkannt.",
+        "data": {
+          "host": "Host (IP-Adresse oder Hostname)",
+          "device_name": "Gerätename (optional)",
+          "username": "Benutzername (optional)",
+          "password": "Passwort (optional)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zum Gerät fehlgeschlagen",
+      "invalid_auth": "Ungültige Anmeldedaten",
+      "unknown": "Unerwarteter Fehler aufgetreten"
+    },
+    "abort": {
+      "already_configured": "Gerät ist bereits konfiguriert"
+    }
+  },
+  "options": {
+    "step": {
+      "basic": {
+        "title": "HW Group Gerät konfigurieren",
+        "description": "Aktualisieren Sie die Verbindungsdetails für {device_name}. Aktueller Typ: {current_type}. Der Gerätetyp wird automatisch neu erkannt. Änderungen werden sofort ohne Neustart angewendet.",
+        "data": {
+          "host": "Host (IP-Adresse oder Hostname)",
+          "device_name": "Gerätename (optional)",
+          "username": "Benutzername (optional)",
+          "password": "Passwort (optional)"
+        }
+      },
+      "binary_sensors": {
+        "title": "Binärsensoren konfigurieren",
+        "description": "Wählen Sie Binärsensoren aus, die invertiert werden sollen (EIN wird AUS und umgekehrt). Nützlich für Türsensoren, bei denen 'geschlossen' als EIN angezeigt werden soll.\n\nVerfügbare Sensoren:\n{sensors}",
+        "data": {
+          "invert_binary_sensors": "Diese Binärsensoren invertieren"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zum Gerät fehlgeschlagen",
+      "invalid_auth": "Ungültige Anmeldedaten",
+      "unknown": "Unerwarteter Fehler aufgetreten"
+    }
+  }
+}
