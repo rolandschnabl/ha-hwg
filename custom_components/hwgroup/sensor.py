@@ -122,6 +122,80 @@ class HWGroupSensor(CoordinatorEntity, SensorEntity):
         self._attr_name = sensor_data["name"]
         self._attr_unique_id = f"{entry.entry_id}_{sensor_data['id']}"
         
+        # Auto-detect icon from sensor name
+        sensor_name_lower = sensor_data["name"].lower()
+        sensor_type = sensor_data.get("type", "generic")
+        
+        if sensor_type == "temperature":
+            if any(keyword in sensor_name_lower for keyword in ["server", "cpu", "processor"]):
+                self._attr_icon = "mdi:cpu"
+            elif any(keyword in sensor_name_lower for keyword in ["rack", "cabinet", "schrank"]):
+                self._attr_icon = "mdi:server"
+            elif any(keyword in sensor_name_lower for keyword in ["storage", "disk", "hdd", "ssd"]):
+                self._attr_icon = "mdi:harddisk"
+            elif any(keyword in sensor_name_lower for keyword in ["room", "raum", "zimmer"]):
+                self._attr_icon = "mdi:home-thermometer"
+            elif any(keyword in sensor_name_lower for keyword in ["outside", "outdoor", "aussen", "außen"]):
+                self._attr_icon = "mdi:thermometer"
+            elif any(keyword in sensor_name_lower for keyword in ["water", "wasser"]):
+                self._attr_icon = "mdi:water-thermometer"
+            else:
+                self._attr_icon = "mdi:thermometer"
+        
+        elif sensor_type == "humidity":
+            if any(keyword in sensor_name_lower for keyword in ["front", "vorne"]):
+                self._attr_icon = "mdi:water-percent"
+            elif any(keyword in sensor_name_lower for keyword in ["back", "rear", "hinten"]):
+                self._attr_icon = "mdi:water-percent-alert"
+            else:
+                self._attr_icon = "mdi:water-percent"
+        
+        elif sensor_type == "voltage":
+            if any(keyword in sensor_name_lower for keyword in ["battery", "batterie", "akku"]):
+                self._attr_icon = "mdi:battery-charging"
+            else:
+                self._attr_icon = "mdi:lightning-bolt"
+        
+        elif sensor_type == "current":
+            self._attr_icon = "mdi:current-ac"
+        
+        # SMS Gateway specific icons
+        elif "signal" in sensor_name_lower:
+            if "strength" in sensor_name_lower:
+                self._attr_icon = "mdi:signal-cellular-3"
+            elif "quality" in sensor_name_lower:
+                self._attr_icon = "mdi:signal"
+            else:
+                self._attr_icon = "mdi:antenna"
+        
+        elif "network" in sensor_name_lower:
+            if "operator" in sensor_name_lower:
+                self._attr_icon = "mdi:cellphone"
+            elif "status" in sensor_name_lower:
+                self._attr_icon = "mdi:network"
+            else:
+                self._attr_icon = "mdi:network-outline"
+        
+        elif "sms" in sensor_name_lower:
+            if "sent" in sensor_name_lower or "gesendet" in sensor_name_lower:
+                self._attr_icon = "mdi:message-check"
+            elif "error" in sensor_name_lower or "fehler" in sensor_name_lower:
+                self._attr_icon = "mdi:message-alert"
+            else:
+                self._attr_icon = "mdi:message-text"
+        
+        else:
+            # Use default icon from entity description if no specific match
+            self._attr_icon = None
+        
+        if self._attr_icon:
+            _LOGGER.debug(
+                "Sensor '%s' (type: %s) assigned icon: %s",
+                sensor_data["name"],
+                sensor_type,
+                self._attr_icon
+            )
+        
         # Set device info
         device_info = coordinator.data.get("device_info", {})
         device_name = entry.data.get(CONF_DEVICE_NAME) or device_info.get("name", "HW Group Device")

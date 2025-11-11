@@ -74,12 +74,73 @@ class HWGroupBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._attr_unique_id = f"{entry.entry_id}_binary_{binary_data['id']}"
         self._entry_id = entry.entry_id
         
-        # Determine device class based on type
+        # Determine device class and icon based on name and type
+        sensor_name_lower = binary_data["name"].lower()
         sensor_type = binary_data.get("type", "contact")
-        if sensor_type == "alarm":
+        
+        # Auto-detect device class and icon from name
+        if any(keyword in sensor_name_lower for keyword in ["door", "tür", "türe", "tur"]):
+            self._attr_device_class = BinarySensorDeviceClass.DOOR
+            self._attr_icon = "mdi:door"
+        elif any(keyword in sensor_name_lower for keyword in ["window", "fenster"]):
+            self._attr_device_class = BinarySensorDeviceClass.WINDOW
+            self._attr_icon = "mdi:window-closed"
+        elif any(keyword in sensor_name_lower for keyword in ["motion", "bewegung", "pir"]):
+            self._attr_device_class = BinarySensorDeviceClass.MOTION
+            self._attr_icon = "mdi:motion-sensor"
+        elif any(keyword in sensor_name_lower for keyword in ["smoke", "rauch", "fire", "feuer"]):
+            self._attr_device_class = BinarySensorDeviceClass.SMOKE
+            self._attr_icon = "mdi:smoke-detector"
+        elif any(keyword in sensor_name_lower for keyword in ["water", "wasser", "leak", "leck"]):
+            self._attr_device_class = BinarySensorDeviceClass.MOISTURE
+            self._attr_icon = "mdi:water-alert"
+        elif any(keyword in sensor_name_lower for keyword in ["hum", "humidity", "feucht", "moisture"]):
+            self._attr_device_class = BinarySensorDeviceClass.MOISTURE
+            self._attr_icon = "mdi:water-percent"
+        elif any(keyword in sensor_name_lower for keyword in ["temp", "temperature", "heat", "cold"]):
+            self._attr_device_class = BinarySensorDeviceClass.HEAT
+            self._attr_icon = "mdi:thermometer-alert"
+        elif any(keyword in sensor_name_lower for keyword in ["vibration", "vibr", "shock"]):
+            self._attr_device_class = BinarySensorDeviceClass.VIBRATION
+            self._attr_icon = "mdi:vibrate"
+        elif any(keyword in sensor_name_lower for keyword in ["sound", "noise", "geräusch", "laut"]):
+            self._attr_device_class = BinarySensorDeviceClass.SOUND
+            self._attr_icon = "mdi:volume-high"
+        elif any(keyword in sensor_name_lower for keyword in ["power", "strom", "electricity"]):
+            self._attr_device_class = BinarySensorDeviceClass.POWER
+            self._attr_icon = "mdi:power-plug"
+        elif any(keyword in sensor_name_lower for keyword in ["gas"]):
+            self._attr_device_class = BinarySensorDeviceClass.GAS
+            self._attr_icon = "mdi:gas-cylinder"
+        elif any(keyword in sensor_name_lower for keyword in ["light", "licht", "brightness"]):
+            self._attr_device_class = BinarySensorDeviceClass.LIGHT
+            self._attr_icon = "mdi:lightbulb"
+        elif any(keyword in sensor_name_lower for keyword in ["presence", "anwesenheit", "occupancy"]):
+            self._attr_device_class = BinarySensorDeviceClass.OCCUPANCY
+            self._attr_icon = "mdi:home-account"
+        elif any(keyword in sensor_name_lower for keyword in ["comm", "connection", "verbindung", "network"]):
+            self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+            self._attr_icon = "mdi:network"
+        elif any(keyword in sensor_name_lower for keyword in ["alarm", "alert"]):
             self._attr_device_class = BinarySensorDeviceClass.PROBLEM
+            self._attr_icon = "mdi:bell-alert"
+        elif any(keyword in sensor_name_lower for keyword in ["battery", "batterie", "akku"]):
+            self._attr_device_class = BinarySensorDeviceClass.BATTERY
+            self._attr_icon = "mdi:battery-alert"
+        elif sensor_type == "alarm":
+            self._attr_device_class = BinarySensorDeviceClass.PROBLEM
+            self._attr_icon = "mdi:alert-circle"
         else:
+            # Default fallback
             self._attr_device_class = BinarySensorDeviceClass.OPENING
+            self._attr_icon = "mdi:electric-switch"
+        
+        _LOGGER.debug(
+            "Binary sensor '%s' detected as %s with icon %s",
+            binary_data["name"],
+            self._attr_device_class,
+            self._attr_icon
+        )
         
         # Set device info
         device_info = coordinator.data.get("device_info", {})
